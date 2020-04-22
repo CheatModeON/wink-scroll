@@ -162,7 +162,7 @@ video.addEventListener('play', () => {
       }
 
       if(A!=null && A!=0) {
-        threshold = Math.floor(3*A/7) // using value A for calibration
+        threshold = Math.floor(3*A/6) // using value A for calibration
       }
       cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
       cv.threshold(src, dst, threshold, 255, cv.THRESH_BINARY);
