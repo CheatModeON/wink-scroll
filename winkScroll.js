@@ -1,7 +1,11 @@
 
 let DEBUG = true
 
+var leftEye
+var resizedLeftEye
+
 var text = document.createElement("P");
+text.id = "txt";
 
 var video = document.createElement("VIDEO");
 video.id = "video";
@@ -27,16 +31,16 @@ canvas2.style.top = 570 + "px";
 canvas2.style.left = 10 + "px";
 var canvas3 = document.createElement("CANVAS");
 canvas3.id = "canvas3"
-canvas3.width = 300
-canvas3.height = 150
+canvas3.width = canvas2.width
+canvas3.height = canvas2.height
 canvas3.style.position = "absolute";
-canvas3.style.top = 740 + "px";
+canvas3.style.top = 730 + "px";
 canvas3.style.left = 10 + "px";
 
-document.body.appendChild(text);
 document.body.appendChild(video);
 document.body.appendChild(canvas2);
 document.body.appendChild(canvas3);
+document.body.appendChild(text);
 
 // https://docs.opencv.org/3.4/df/df7/tutorial_js_table_of_contents_setup.html
 
@@ -59,10 +63,10 @@ if(!DEBUG){
 }
 
 Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceLandmark68Net.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceRecognitionNet.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceExpressionNet.loadFromUri('/wink-scroll/models') //change this to /models in order to work in your local folder
+  faceapi.nets.tinyFaceDetector.loadFromUri('/models'), //change this to /models in order to work in your local folder
+  faceapi.nets.faceLandmark68Net.loadFromUri('models'), //change this to /models in order to work in your local folder
+  faceapi.nets.faceRecognitionNet.loadFromUri('/models'), //change this to /models in order to work in your local folder
+  faceapi.nets.faceExpressionNet.loadFromUri('/models') //change this to /models in order to work in your local folder
 ]).then(startVideo)
 
 function startVideo() {
@@ -77,7 +81,6 @@ let dst = new cv.Mat(video.height, video.width, cv.CV_8UC1);
 let cap = new cv.VideoCapture(video);
 const LEFT_EYE_POINTS = [36, 37, 38, 39, 40, 41]
 const RIGHT_EYE_POINTS = [42, 43, 44, 45, 46, 47]
-var landmarks = []
 
 video.addEventListener('play', () => {
   const canvas = faceapi.createCanvasFromMedia(video)
@@ -103,42 +106,35 @@ video.addEventListener('play', () => {
     } else {
       for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "white"; }
     }
-    //landmarks = detections[0].landmarks.positions //landmarks
-    //console.log(detections[0].landmarks)
-
-    //console.log(detections[0].landmarks.getLeftEye())
-    //console.log(detections[0].landmarks.getRightEye())
-    /*
-    console.log(detections[0].detection.box.bottomLeft)
-    console.log(detections[0].detection.box.bottomRight)
-    console.log(detections[0].detection.box.topLeft)
-    console.log(detections[0].detection.box.topRight)
-    */
 
     const resizedDetections = faceapi.resizeResults(detections, displaySize)
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
 
     if(DEBUG) {
       faceapi.draw.drawDetections(canvas, resizedDetections)
-      //faceapi.draw.drawFaceLandmarks(canvas, resizedDetections)
-      //faceapi.draw.drawFaceExpressions(canvas, resizedDetections)
+      faceapi.draw.drawFaceLandmarks(canvas, resizedDetections)
+      faceapi.draw.drawFaceExpressions(canvas, resizedDetections)
     }
 
     canvas2.getContext('2d').clearRect(0, 0, canvas2.width, canvas2.height)
     canvas3.getContext('2d').clearRect(0, 0, canvas3.width, canvas3.height)
 
-    var disX = distance(resizedDetections[0].landmarks.getLeftEye()[0], resizedDetections[0].landmarks.getLeftEye()[3]) /2
-    var disY = distance(resizedDetections[0].landmarks.getLeftEye()[1], resizedDetections[0].landmarks.getLeftEye()[4]) -5
+    if(detections.length==1){
+      leftEye = detections[0].landmarks.getLeftEye()
+      resizedLeftEye = resizedDetections[0].landmarks.getLeftEye()
+    }
+
+    var disX = distance(resizedLeftEye[0], resizedLeftEye[3]) /2
+    var disY = distance(resizedLeftEye[1], resizedLeftEye[4]) -5
 
 
     // https://stackoverflow.com/questions/26015497/how-to-resize-then-crop-an-image-with-canvas
     ctx.drawImage( video,
-      detections[0].landmarks.getLeftEye()[0].x +10,        // start X
-      detections[0].landmarks.getLeftEye()[0].y - 3,        // start Y
+      leftEye[0].x +10,        // start X
+      leftEye[0].y - 3,        // start Y
       disX, disY,                                           // area to crop
       0, 0,                                                 // Place the result at 0, 0 in the canvas,
-      300, 150)                                             // with this width height (Scale)
-
+      canvas2.width, canvas2.height)                                             // with this width height (Scale)
 
       let src = cv.imread('canvas2');
       let dst = new cv.Mat();
@@ -148,27 +144,41 @@ video.addEventListener('play', () => {
       //erode (https://docs.opencv.org/3.4/d4/d76/tutorial_js_morphological_ops.html)
       let M = cv.Mat.ones(3, 3, cv.CV_8U);
       let anchor = new cv.Point(-1, -1);
-      cv.erode(src, dst, M, anchor, 3, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
+      cv.erode(dst, src, M, anchor, 3, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
       //threshold (https://docs.opencv.org/3.4/d7/dd0/tutorial_js_thresholding.html)
 
       // https://docs.opencv.org/master/de/d06/tutorial_js_basic_ops.html
       let row = 3, col = 4;
       var A = 0;
+      var rel_lum = 0;
+      var lum2 = 0;
+      var l709 = 0;
+      var l601 = 0;
       if (src.isContinuous()) {
           let R = src.data[row * src.cols * src.channels() + col * src.channels()];
           let G = src.data[row * src.cols * src.channels() + col * src.channels() + 1];
           let B = src.data[row * src.cols * src.channels() + col * src.channels() + 2];
           A = src.data[row * src.cols * src.channels() + col * src.channels() + 3];
+          rel_lum = (0.2126*R + 0.7152*G + 0.0722*B);
+          lum2 = (0.299*R + 0.587*G + 0.114*B);
+          l709 = 0.2126*R + 0.7152*G + 0.0722*B;
+          l601 = 0.299*R + 0.587*G + 0.114*B;
       }
 
       if(A!=null && A!=0) {
-        threshold = Math.floor(3*A/6) // using value A for calibration
+        threshold = Math.floor(A/2) // using value A for calibration
       }
       cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
       cv.threshold(src, dst, threshold, 255, cv.THRESH_BINARY);
 
+      if (dst.isContinuous()) {
+          var BW = dst.data;
+          console.log("No of 0: " + BW.filter(v => v === 0).length );
+          console.log("Percentage of 0: " +  BW.filter(v => v === 0).length / BW.length );
+      }
+
       //find contours (https://docs.opencv.org/3.4/d5/daa/tutorial_js_contours_begin.html)
-      let dst2 = cv.Mat.zeros(dst.cols, dst.rows, cv.CV_8UC3);
+      let dst2 = cv.Mat.zeros(dst.rows, dst.cols, cv.CV_8UC3);
       let contours = new cv.MatVector();
       let hierarchy = new cv.Mat();
       cv.findContours(dst, contours, hierarchy, cv.RETR_TREE, cv.CHAIN_APPROX_NONE);
@@ -186,9 +196,10 @@ video.addEventListener('play', () => {
       let cx = Moments.m10/Moments.m00
       let cy = Moments.m01/Moments.m00
 
-      cv.imshow('canvas3', dst);
-      src.delete(); dst.delete(); contours.delete(); hierarchy.delete(); dst2.delete();
+      console.log("cx: "+cx+"cy: "+cy)
 
+      cv.imshow('canvas3', dst2);
+      src.delete(); dst.delete(); contours.delete(); hierarchy.delete(); dst2.delete();
 
       // fill the buffer if centroid exists
       if( cx!=null && cx!=0 && cy!=null && cy!=0 && !Number.isNaN(cx) && !Number.isNaN(cy) ) {
@@ -218,7 +229,7 @@ video.addEventListener('play', () => {
         }
       }
 
-      if(DEBUG) {
+      if(DEBUG && detections.length==1) {
         if(detections[0].expressions.neutral>0.7) {
           document.body.style.backgroundColor = "white";
         }
@@ -241,7 +252,6 @@ video.addEventListener('play', () => {
           document.body.style.backgroundColor = "yellow";
         }
       }
-      console.log(document.activeElement)
 /*
     for (var i = 0; i < 6; i++){
       ctx.fillRect(resizedDetections[0].landmarks.getLeftEye()[i].x, resizedDetections[0].landmarks.getLeftEye()[i].y, 2, 2);
@@ -295,4 +305,22 @@ function _middle_point(p1, p2) {
     x = int((p1.x + p2.x) / 2)
     y = int((p1.y + p2.y) / 2)
     return (x, y)
+}
+
+function getLandmarks(d){
+  /* Returns the Landmarks
+
+  Arguments:
+      d (e.g. detections[0]): a face detection object
+  */
+  return d.landmarks.positions;
+}
+
+function getDetectionBox(d){
+  /* Returns the detectionBox array which consists of bottomLeft, bottomRight, topLeft, topRight
+
+  Arguments:
+      d (e.g. detections[0]): a face detection object
+  */
+  return d.detection.box;
 }
