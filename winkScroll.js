@@ -63,10 +63,10 @@ if(!DEBUG){
 }
 
 Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceLandmark68Net.loadFromUri('models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceRecognitionNet.loadFromUri('/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceExpressionNet.loadFromUri('/models') //change this to /models in order to work in your local folder
+  faceapi.nets.tinyFaceDetector.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
+  faceapi.nets.faceLandmark68Net.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
+  faceapi.nets.faceRecognitionNet.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
+  faceapi.nets.faceExpressionNet.loadFromUri('/wink-scroll/models') //change this to /models in order to work in your local folder
 ]).then(startVideo)
 
 function startVideo() {
