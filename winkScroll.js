@@ -1,12 +1,12 @@
 
 let DEBUG = true
-
 var leftEye
 var resizedLeftEye
 
+// Init debuggin text field, video and canvases
 var text = document.createElement("P");
 text.id = "txt";
-
+text.style.fontSize = "xx-large";
 var video = document.createElement("VIDEO");
 video.id = "video";
 video.width = 749
@@ -16,11 +16,9 @@ video.defaultMuted = true;
 video.style.position = "absolute";
 video.style.top = 0 + "px";
 video.style.left = 0 + "px";
-
 if(!DEBUG){
   video.style.left = -window.innerWidth + "px";
 }
-
 video.load();
 var canvas2 = document.createElement("CANVAS");
 canvas2.id = "canvas2"
@@ -83,51 +81,54 @@ const LEFT_EYE_POINTS = [36, 37, 38, 39, 40, 41]
 const RIGHT_EYE_POINTS = [42, 43, 44, 45, 46, 47]
 
 video.addEventListener('play', () => {
+  // Create the overlayed canvas and append it to body
   const canvas = faceapi.createCanvasFromMedia(video)
-
   canvas.style.position = "absolute"
   canvas.style.top = 0 + "px"
   canvas.style.left = 0 + "px"
-
   document.body.append(canvas)
-  const displaySize = { width: video.width, height: video.height }
-  faceapi.matchDimensions(canvas, displaySize)
 
+  const displaySize = { width: video.width, height: video.height }
+  faceapi.matchDimensions(canvas, displaySize) // match dimensions of canvas and video feed
+
+  // Get context of canvas2, canvas3
   var ctx = canvas2.getContext("2d");
   ctx.fillStyle = "#FF0000";
   var ctx2 = canvas3.getContext("2d");
   ctx2.fillStyle = "#FF0000";
 
   setInterval(async () => {
+
+    // Detect faces with face-api
     const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions()
 
-    if(detections.length==1){
-      for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "#fed9ff"; }
-    } else {
-      for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "white"; }
-    }
-
+    // Resize the detections to match the canvas size
     const resizedDetections = faceapi.resizeResults(detections, displaySize)
+    // Clear the canvases before doing anything
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+    canvas2.getContext('2d').clearRect(0, 0, canvas2.width, canvas2.height)
+    canvas3.getContext('2d').clearRect(0, 0, canvas3.width, canvas3.height)
 
+    // If Debug mode is ON draw the face-api detections on the first canvas that is overlayed on the video feed
     if(DEBUG) {
       faceapi.draw.drawDetections(canvas, resizedDetections)
       faceapi.draw.drawFaceLandmarks(canvas, resizedDetections)
       faceapi.draw.drawFaceExpressions(canvas, resizedDetections)
     }
 
-    canvas2.getContext('2d').clearRect(0, 0, canvas2.width, canvas2.height)
-    canvas3.getContext('2d').clearRect(0, 0, canvas3.width, canvas3.height)
-
+    // Check if there's only 1 face on the feed and change the BG color of winkScroll class element
     if(detections.length==1){
       leftEye = detections[0].landmarks.getLeftEye()
       resizedLeftEye = resizedDetections[0].landmarks.getLeftEye()
+      for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "#fed9ff"; }
+    } else {
+      for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "white"; }
     }
 
     var disX = distance(resizedLeftEye[0], resizedLeftEye[3]) /2
     var disY = distance(resizedLeftEye[1], resizedLeftEye[4]) -5
 
-
+    // Draw cropped image on canvas2
     // https://stackoverflow.com/questions/26015497/how-to-resize-then-crop-an-image-with-canvas
     ctx.drawImage( video,
       leftEye[0].x +10,        // start X
@@ -136,133 +137,130 @@ video.addEventListener('play', () => {
       0, 0,                                                 // Place the result at 0, 0 in the canvas,
       canvas2.width, canvas2.height)                                             // with this width height (Scale)
 
-      let src = cv.imread('canvas2');
-      let dst = new cv.Mat();
-      //bilateralFilter (https://docs.opencv.org/3.4/dd/d6a/tutorial_js_filtering.html)
-      cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
-      cv.bilateralFilter(src, dst, 10, 15, 15);
-      //erode (https://docs.opencv.org/3.4/d4/d76/tutorial_js_morphological_ops.html)
-      let M = cv.Mat.ones(3, 3, cv.CV_8U);
-      let anchor = new cv.Point(-1, -1);
-      cv.erode(dst, src, M, anchor, 3, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
-      //threshold (https://docs.opencv.org/3.4/d7/dd0/tutorial_js_thresholding.html)
+    // IMAGE PROCESSING
+    let src = cv.imread('canvas2');
+    let dst = new cv.Mat();
+    //bilateralFilter (https://docs.opencv.org/3.4/dd/d6a/tutorial_js_filtering.html)
+    cv.cvtColor(src, src, cv.COLOR_RGBA2RGB, 0);
+    cv.bilateralFilter(src, dst, 10, 15, 15);
+    //erode (https://docs.opencv.org/3.4/d4/d76/tutorial_js_morphological_ops.html)
+    let M = cv.Mat.ones(3, 3, cv.CV_8U);
+    let anchor = new cv.Point(-1, -1);
+    cv.erode(dst, src, M, anchor, 3, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
 
-      // https://docs.opencv.org/master/de/d06/tutorial_js_basic_ops.html
-      let row = 3, col = 4;
-      var A = 0;
-      var rel_lum = 0;
-      var lum2 = 0;
-      var l709 = 0;
-      var l601 = 0;
-      if (src.isContinuous()) {
-          let R = src.data[row * src.cols * src.channels() + col * src.channels()];
-          let G = src.data[row * src.cols * src.channels() + col * src.channels() + 1];
-          let B = src.data[row * src.cols * src.channels() + col * src.channels() + 2];
-          A = src.data[row * src.cols * src.channels() + col * src.channels() + 3];
-          rel_lum = (0.2126*R + 0.7152*G + 0.0722*B);
-          lum2 = (0.299*R + 0.587*G + 0.114*B);
-          l709 = 0.2126*R + 0.7152*G + 0.0722*B;
-          l601 = 0.299*R + 0.587*G + 0.114*B;
-      }
-
-      if(A!=null && A!=0) {
-        threshold = Math.floor(A/2) // using value A for calibration
-      }
-      cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
-      cv.threshold(src, dst, threshold, 255, cv.THRESH_BINARY);
-
-      if (dst.isContinuous()) {
-          var BW = dst.data;
-          console.log("No of 0: " + BW.filter(v => v === 0).length );
-          console.log("Percentage of 0: " +  BW.filter(v => v === 0).length / BW.length );
-      }
-
-      //find contours (https://docs.opencv.org/3.4/d5/daa/tutorial_js_contours_begin.html)
-      let dst2 = cv.Mat.zeros(dst.rows, dst.cols, cv.CV_8UC3);
-      let contours = new cv.MatVector();
-      let hierarchy = new cv.Mat();
-      cv.findContours(dst, contours, hierarchy, cv.RETR_TREE, cv.CHAIN_APPROX_NONE);
-
-      for (let i = 0; i < contours.size(); ++i) {
-          let color = new cv.Scalar(255,0,0);
-          cv.drawContours(dst2, contours, i, color, 1, cv.LINE_8, hierarchy, 100);
-      }
-
-      // https://docs.opencv.org/3.4/dc/dcf/tutorial_js_contour_features.html
-      // get centroid and print it
-      let cnt = contours.get(0);
-      let Moments = cv.moments(cnt, false);
-
-      let cx = Moments.m10/Moments.m00
-      let cy = Moments.m01/Moments.m00
-
-      console.log("cx: "+cx+"cy: "+cy)
-
-      cv.imshow('canvas3', dst2);
-      src.delete(); dst.delete(); contours.delete(); hierarchy.delete(); dst2.delete();
-
-      // fill the buffer if centroid exists
-      if( cx!=null && cx!=0 && cy!=null && cy!=0 && !Number.isNaN(cx) && !Number.isNaN(cy) ) {
-        if(flag>bufferSize) {
-          flag = 0
-        }
-        bufferX[flag] = cx
-        bufferY[flag] = cy
-        flag += 1
-      }
-
-      cx = movingAVG()[0]
-      cy = movingAVG()[1]
-
-      ctx.fillRect(cx, cy, 5, 5);
-
-      if(cy >  5 * 150 / 7) {
-        if(DEBUG) {
-          text.innerHTML = "Wink Scrolling"
-          text.style.backgroundColor = "red"
-        }
-        pageScroll()
-      } else {
-        if(DEBUG){
-          text.innerHTML = "Static"
-          text.style.backgroundColor = "white"
-        }
-      }
-
-      if(DEBUG && detections.length==1) {
-        if(detections[0].expressions.neutral>0.7) {
-          document.body.style.backgroundColor = "white";
-        }
-        else if(detections[0].expressions.happy>0.7){
-          document.body.style.backgroundColor = "blue";
-        }
-        else if(detections[0].expressions.sad>0.7){
-          document.body.style.backgroundColor = "grey";
-        }
-        else if(detections[0].expressions.angry>0.7){
-          document.body.style.backgroundColor = "red";
-        }
-        else if(detections[0].expressions.disgusted>0.7){
-          document.body.style.backgroundColor = "green";
-        }
-        else if(detections[0].expressions.fearful>0.7){
-          document.body.style.backgroundColor = "lightblue";
-        }
-        else if(detections[0].expressions.surprised>0.7){
-          document.body.style.backgroundColor = "yellow";
-        }
-      }
-/*
-    for (var i = 0; i < 6; i++){
-      ctx.fillRect(resizedDetections[0].landmarks.getLeftEye()[i].x, resizedDetections[0].landmarks.getLeftEye()[i].y, 2, 2);
+    // https://docs.opencv.org/master/de/d06/tutorial_js_basic_ops.html
+    let row = 3, col = 4;
+    var A = 0;
+    var rel_lum = 0;
+    var lum2 = 0;
+    var l709 = 0;
+    var l601 = 0;
+    if (src.isContinuous()) {
+        let R = src.data[row * src.cols * src.channels() + col * src.channels()];
+        let G = src.data[row * src.cols * src.channels() + col * src.channels() + 1];
+        let B = src.data[row * src.cols * src.channels() + col * src.channels() + 2];
+        A = src.data[row * src.cols * src.channels() + col * src.channels() + 3];
+        rel_lum = (0.2126*R + 0.7152*G + 0.0722*B);
+        lum2 = (0.299*R + 0.587*G + 0.114*B);
+        l709 = 0.2126*R + 0.7152*G + 0.0722*B;
+        l601 = 0.299*R + 0.587*G + 0.114*B;
     }
-*/
-//ctx.fillRect(resizedDetections[0].landmarks.getLeftEye()[0].x, resizedDetections[0].landmarks.getLeftEye()[0].y, 2, 2);
-//ctx.fillRect(resizedDetections[0].landmarks.getLeftEye()[3].x, resizedDetections[0].landmarks.getLeftEye()[3].y, 2, 2);
 
+    if(A!=null   && A!=0) {
+      threshold = Math.floor(A/2) // using value A for calibration
+    }
+    // Binary Threshold (https://docs.opencv.org/3.4/d7/dd0/tutorial_js_thresholding.html)
+    cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+    cv.threshold(src, dst, threshold, 255, cv.THRESH_BINARY);
+
+    if (dst.isContinuous()) {
+        var BW = dst.data;
+        console.log("No of 0: " + BW.filter(v => v === 0).length );
+        console.log("Percentage of 0: " +  BW.filter(v => v === 0).length / BW.length );
+    }
+
+    // Find contours (https://docs.opencv.org/3.4/d5/daa/tutorial_js_contours_begin.html)
+    let dst2 = cv.Mat.zeros(dst.rows, dst.cols, cv.CV_8UC3);
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(dst, contours, hierarchy, cv.RETR_TREE, cv.CHAIN_APPROX_NONE);
+
+    for (let i = 0; i < contours.size(); ++i) {
+        let color = new cv.Scalar(255,0,0);
+        cv.drawContours(dst2, contours, i, color, 1, cv.LINE_8, hierarchy, 100);
+    }
+
+    // Get centroid (https://docs.opencv.org/3.4/dc/dcf/tutorial_js_contour_features.html)
+    let cnt = contours.get(0);
+    let Moments = cv.moments(cnt, false);
+
+    let cx = Moments.m10/Moments.m00
+    let cy = Moments.m01/Moments.m00
+
+    // Draw processed image in canvas3
+    cv.imshow('canvas3', dst2);
+    src.delete(); dst.delete(); contours.delete(); hierarchy.delete(); dst2.delete();
+
+    // Fill the buffer if centroid exists
+    if( cx!=null && cx!=0 && cy!=null && cy!=0 && !Number.isNaN(cx) && !Number.isNaN(cy) ) {
+      if(flag>bufferSize) {
+        flag = 0
+      }
+      bufferX[flag] = cx
+      bufferY[flag] = cy
+      flag += 1
+    }
+
+    // Calculate Moving Average of Centrorid for bufferX and bufferY respectively
+    // MA helps dealing with huge flunctuations and distinguises eye winking from eye blinking
+    cx = movingAVG()[0]
+    cy = movingAVG()[1]
+
+    // Draw the Centroid on canvas2
+    ctx.fillRect(cx, cy, 5, 5);
+
+    // Check if y axes of centroid is more than a threshold (that means eye winking)
+    if(cy >  5 * 150 / 7) {
+      if(DEBUG) {
+        text.innerHTML = "Wink Scrolling"
+        text.style.backgroundColor = "red"
+      }
+      pageScroll() // Scroll the element of class winkScroll
+    } else {
+      if(DEBUG){
+        text.innerHTML = "Static"
+        text.style.backgroundColor = "white"
+      }
+    }
+
+    // JUST AN EXTRA FEATURE - Changing Body color based on facial expressions
+    if(DEBUG && detections.length==1) {
+      if(detections[0].expressions.neutral>0.7) {
+        document.body.style.backgroundColor = "white";
+      }
+      else if(detections[0].expressions.happy>0.7){
+        document.body.style.backgroundColor = "blue";
+      }
+      else if(detections[0].expressions.sad>0.7){
+        document.body.style.backgroundColor = "grey";
+      }
+      else if(detections[0].expressions.angry>0.7){
+        document.body.style.backgroundColor = "red";
+      }
+      else if(detections[0].expressions.disgusted>0.7){
+        document.body.style.backgroundColor = "green";
+      }
+      else if(detections[0].expressions.fearful>0.7){
+        document.body.style.backgroundColor = "lightblue";
+      }
+      else if(detections[0].expressions.surprised>0.7){
+        document.body.style.backgroundColor = "yellow";
+      }
+    }
   }, 100)
 })
 
+// FUNCTIONS
 function movingAVG() {
   var x_total = 0
   var y_total = 0
