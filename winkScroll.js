@@ -6,7 +6,7 @@ var resizedLeftEye
 // Init debuggin text field, video and canvases
 var text = document.createElement("P");
 text.id = "txt";
-text.style.fontSize = "400%";
+text.style.fontSize = "300%";
 var video = document.createElement("VIDEO");
 video.id = "video";
 video.width = 749
