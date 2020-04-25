@@ -120,7 +120,7 @@ video.addEventListener('play', () => {
     if(detections.length==1){
       leftEye = detections[0].landmarks.getLeftEye()
       resizedLeftEye = resizedDetections[0].landmarks.getLeftEye()
-      for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "#fed9ff"; }
+      for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "#e6faff"; }
     } else {
       for(var i=0; i<document.getElementsByClassName("winkScroll").length|0; i++) { document.getElementsByClassName("winkScroll")[i].style.backgroundColor = "white"; }
     }
