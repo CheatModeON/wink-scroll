@@ -166,17 +166,25 @@ video.addEventListener('play', () => {
         l601 = 0.299*R + 0.587*G + 0.114*B;
     }
 
-    if(A!=null   && A!=0) {
+    /*if(A!=null   && A!=0) {
       threshold = Math.floor(A/2) // using value A for calibration
-    }
+    }*/
     // Binary Threshold (https://docs.opencv.org/3.4/d7/dd0/tutorial_js_thresholding.html)
     cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
     cv.threshold(src, dst, threshold, 255, cv.THRESH_BINARY);
 
+
     if (dst.isContinuous()) {
         var BW = dst.data;
-        console.log("No of 0: " + BW.filter(v => v === 0).length );
-        console.log("Percentage of 0: " +  BW.filter(v => v === 0).length / BW.length );
+        var no_of_zeros = BW.filter(v => v === 0).length;
+        var ratio_of_blacks = 1 - (no_of_zeros / BW.length);
+        console.log("No of 0: " +  no_of_zeros);
+        console.log("Ratio of blacks: " +  ratio_of_blacks );
+        if(ratio_of_blacks > 0.60){
+          threshold -= 10;
+        } else if(ratio_of_blacks < 0.40) {
+          threshold += 10;
+        }
     }
 
     // Find contours (https://docs.opencv.org/3.4/d5/daa/tutorial_js_contours_begin.html)
