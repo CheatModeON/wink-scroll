@@ -183,9 +183,9 @@ video.addEventListener('play', () => {
 
         // make this reccursive
         if(ratio_of_blacks > 0.60){
-          threshold += 10;
-        } else if(ratio_of_blacks < 0.40) {
           threshold -= 10;
+        } else if(ratio_of_blacks < 0.40) {
+          threshold += 10;
         }
     }
 
