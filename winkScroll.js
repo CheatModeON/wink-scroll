@@ -184,9 +184,9 @@ video.addEventListener('play', () => {
         console.log("TH:"+threshold);
 
         // make this reccursive
-        if(ratio_of_blacks > 0.60){
+        if(ratio_of_blacks > 0.55){
           threshold += 5;
-        } else if(ratio_of_blacks < 0.40) {
+        } else if(ratio_of_blacks < 0.45) {
           threshold -= 5;
         }
     }
