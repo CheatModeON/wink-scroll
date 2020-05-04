@@ -60,19 +60,50 @@ if(!DEBUG){
   canvas3.style.display="none";
 }
 
-Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceLandmark68Net.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceRecognitionNet.loadFromUri('/wink-scroll/models'), //change this to /models in order to work in your local folder
-  faceapi.nets.faceExpressionNet.loadFromUri('/wink-scroll/models') //change this to /models in order to work in your local folder
-]).then(startVideo)
+
+if(window.location.hostname=="127.0.0.1"){
+  Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+    faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+    faceapi.nets.faceExpressionNet.loadFromUri('/models')
+  ]).then(startVideo)
+} else {
+  let subfolder = 'wink-scroll' // change this to the subfolder you've put models folder on your server
+  Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('/'+subfolder+'/models'),
+    faceapi.nets.faceLandmark68Net.loadFromUri('/'+subfolder+'/models'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('/'+subfolder+'/models'),
+    faceapi.nets.faceExpressionNet.loadFromUri('/'+subfolder+'/models')
+  ]).then(startVideo)
+}
+
 
 function startVideo() {
-  navigator.getUserMedia(
-    { video: {} },
-    stream => video.srcObject = stream,
-    err => console.error(err)
-  )
+  var sUsrAg = navigator.userAgent;
+  // if firefox use navigator.mediaDevices.getUserMedia instead of deprecated navigator.getUserMedia
+  if (sUsrAg.indexOf("Firefox") > -1) {
+    var constraints = { audio: false, video: true };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+    .then(function(stream) {
+      var video = document.querySelector('video');
+      video.srcObject = stream;
+      video.onloadedmetadata = function(e) {
+        video.play();
+      };
+    })
+    .catch(function(err) {
+      console.error(err);
+    });
+
+  } else {
+    navigator.getUserMedia(
+      { video: {} },
+      stream => video.srcObject = stream,
+      err => console.error(err)
+    )
+  }
 }
 let src = new cv.Mat(video.height, video.width, cv.CV_8UC4);
 let dst = new cv.Mat(video.height, video.width, cv.CV_8UC1);
